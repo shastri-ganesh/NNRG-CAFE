@@ -7,7 +7,7 @@
      
     <link href="css/login.css" rel="stylesheet">
 
-    <title>Log in | FOODCAVE</title>
+    <title>Log in | NNRG-CÁFE</title>
 </head>
 
 <body class="d-flex flex-column h-100">
@@ -27,7 +27,7 @@
             <h2 class="mt-4 mb-3 fw-normal text-bold"><i class="bi bi-door-open me-2"></i>Log In</h2>
             <div class="form-floating mb-2">
                 <input type="text" class="form-control" id="floatingInput" placeholder="Username" name="username" required>
-                <label for="floatingInput">Username</label>
+                <label for="floatingInput">Roll Number</label>
             </div>
             <div class="form-floating mb-2">
                 <input type="password" class="form-control" id="floatingPassword" placeholder="Password" name="pwd" required>

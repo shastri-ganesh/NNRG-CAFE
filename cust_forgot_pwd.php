@@ -27,7 +27,7 @@
             <p class="mt-4 mb-3 fw-normal">Enter your information below.</p>
             <div class="form-floating mb-2">
                 <input type="text" class="form-control" id="fp_username" placeholder="Username" name="fp_username" required>
-                <label for="fp_username">Username</label>
+                <label for="fp_username">Roll Number</label>
             </div>
             <div class="form-floating mb-2">
                 <input type="email" class="form-control" id="fp_email" placeholder="Email" name="fp_email" required>

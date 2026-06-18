@@ -17,7 +17,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="css/main.css" rel="stylesheet">
     <link href="css/menu.css" rel="stylesheet">
-    <title>My Cart | FOODCAVE</title>
+    <title>My Cart | NNRG-CÁFE</title>
 </head>
 
 <body class="d-flex flex-column h-100">
@@ -94,30 +94,44 @@
                 <div class="row row-cols-1">
                     <div class="col">
                         <h5 class="fw-light">My Order</h5>
-                        <p class="fw-light">From
-                            <?php 
-                                $cart_query = "SELECT s_id,s_name FROM shop s WHERE s_id = (SELECT s_id FROM cart WHERE c_id = {$_SESSION['cid']} LIMIT 0,1)";
-                                $cart_result = $mysqli -> query($cart_query) -> fetch_array();
-                                echo $cart_result["s_name"];
-                                
-                                
-                            ?>
-                        </p>
-                    </div>
-
-                    
-
-                    <div class="col">
-                        <ul class="list-group">
-                            <!-- START CART ITEM -->
+                        
+                        <?php 
+                        // Get all shops in cart - MODIFIED FOR MULTI-SHOP SUPPORT
+                        $shops_query = "SELECT DISTINCT s.s_id, s.s_name 
+                                       FROM cart c 
+                                       INNER JOIN shop s ON c.s_id = s.s_id 
+                                       WHERE c.c_id = {$_SESSION['cid']}
+                                       ORDER BY s.s_name";
+                        $shops_result = $mysqli -> query($shops_query);
+                        
+                        $total_grand_total = 0; // Track total across all shops
+                        
+                        while($shop_row = $shops_result->fetch_array()){
+                            $current_shop_id = $shop_row["s_id"];
+                            $shop_name = $shop_row["s_name"];
+                        ?>
+                        
+                        <!-- Shop Section Header -->
+                        <div class="mb-3 mt-4">
+                            <h6 class="text-primary border-bottom pb-2">
+                                <i class="bi bi-shop"></i> From <?php echo $shop_name; ?>
+                            </h6>
+                        </div>
+                        
+                        <ul class="list-group mb-4">
+                            <!-- START CART ITEMS FOR THIS SHOP -->
                             <?php
-                                $cartdetail_query = "SELECT ct.ct_amount,ct.f_id,f_pic,f.f_name,f.f_price,ct.ct_note
-                                FROM cart ct INNER JOIN food f ON ct.f_id = f.f_id WHERE ct.c_id = {$_SESSION['cid']}";
+                                $cartdetail_query = "SELECT ct.ct_amount,ct.f_id,f_pic,f.f_name,f.f_price,ct.ct_note,ct.s_id
+                                FROM cart ct INNER JOIN food f ON ct.f_id = f.f_id 
+                                WHERE ct.c_id = {$_SESSION['cid']} AND ct.s_id = {$current_shop_id}";
                                 $cartdetail_result = $mysqli -> query($cartdetail_query);
+                                $shop_subtotal = 0;
+                                
                                 while($row = $cartdetail_result -> fetch_array()){
+                                    $item_total = $row["f_price"] * $row["ct_amount"];
+                                    $shop_subtotal += $item_total;
                             ?>
-                            <li
-                                class="list-group-item d-flex border-0 pb-3 border-bottom w-100 justify-content-between align-items-center">
+                            <li class="list-group-item d-flex border-0 pb-3 border-bottom w-100 justify-content-between align-items-center">
                                 <div class="image-parent">
                                     <img <?php
                                         if(is_null($row["f_pic"])){echo "src='img/default.png'";}
@@ -128,55 +142,64 @@
                                 <div class="ms-3 mt-3 me-auto">
                                     <div class="fw-normal"><span class="h5"><?php echo $row["ct_amount"]?>x</span>
                                         <?php echo $row["f_name"]?>
-                                        <p><?php printf("%.2f INR <small class='text-muted'>(%.2f INR each)</small>",$row["f_price"]*$row["ct_amount"],$row["f_price"])?><br />
+                                        <p><?php printf("%.2f INR <small class='text-muted'>(%.2f INR each)</small>",$item_total,$row["f_price"])?><br />
                                             <span class="text-muted small"> <?php echo $row["ct_note"]?></span>
-                                            
                                         </p>
-                                        <?php
-                                        $rmv = false;
-                                        $rmv_link = false;
-                                        if($rmv_link){?>
-                                        <a href="remove_cart_item.php?rmv=1&s_id=<?php echo $cart_result["s_id"];?>&f_id=<?php echo $row["f_id"];?>"
-                                            class="text-decoration-none text-danger nav nav-item small">Remove item</a>
-                                        <?php }else {?>
-                                        <a href="cust_update_cart.php?s_id=<?php echo $cart_result["s_id"];?>&f_id=<?php echo $row["f_id"];?>"
+                                        <a href="cust_update_cart.php?s_id=<?php echo $row["s_id"];?>&f_id=<?php echo $row["f_id"];?>"
                                             class="text-decoration-none text-success nav nav-item small">Edit item</a>
-                                        <?php } ?>
                                     </div>
+                                </div>
                             </li>
                             <!-- END CART ITEM -->
-                            <?php } ?>
+                            <?php 
+                                } 
+                                $total_grand_total += $shop_subtotal;
+                            ?>
                         </ul>
-                        <div class="col my-3">
+                        
+                        <!-- Shop Subtotal -->
+                        <div class="text-end mb-3">
+                            <strong>Subtotal from <?php echo $shop_name; ?>: <?php printf("%.2f INR", $shop_subtotal); ?></strong>
+                        </div>
+                        
+                        <!-- Remove all items from this shop -->
+                        <div class="mb-3">
+                            <a href="remove_cart_shop.php?rmv=1&s_id=<?php echo $current_shop_id;?>"
+                                class="nav nav-item text-danger text-decoration-none small">
+                                <i class="bi bi-trash"></i> Remove all items from <?php echo $shop_name; ?>
+                            </a>
+                        </div>
+                        
+                        <?php } // End shop loop ?>
+                        
+                        <!-- GRAND TOTAL SECTION -->
+                        <div class="col my-3 border-top pt-3">
                             <ul class="list-inline justify-content-between">
                                 <li class="list-item mb-2">
-                                    <a href="remove_cart_all.php?rmv=1&s_id=<?php echo $cart_result["s_id"];?>"
+                                    <a href="remove_cart_all.php?rmv=1"
                                         class="nav nav-item text-danger text-decoration-none small" name="rmv_all" id="rmv_all">
-                                        Remove all item in cart
+                                        <i class="bi bi-trash"></i> Remove all items from cart
                                     </a>
                                 </li>
                                 <li class="list-inline-item fw-normal h5 me-5">Grand Total</li>
                                 <li class="list-inline-item fw-bold h4">
                                     <?php
-                                        
-                                        $gt_query = "SELECT SUM(ct.ct_amount*f.f_price) AS grandtotal FROM cart ct INNER JOIN food f 
-                                        ON ct.f_id = f.f_id WHERE ct.c_id = {$_SESSION['cid']} GROUP BY ct.c_id";
-                                        $gt_arr = $mysqli -> query($gt_query) -> fetch_array();
-                                        $order_cost = $gt_arr["grandtotal"];
-                                        printf("%.2f INR",$order_cost);
-                                        if($order_cost<20){
-                                            $min_cost = false;  $no_order=true;
-                                        }else{
+                                        printf("%.2f INR", $total_grand_total);
+                                        $order_cost = $total_grand_total;
+                                        if($order_cost < 20){
+                                            $min_cost = false;  
+                                            $no_order = true;
+                                        } else {
                                             $min_cost = true;
                                         }
                                     ?>
                                 </li>
                             </ul>
-                            
                         </div>
                     </div>
                 </div>
             </div>
+            
             <div class="col mt-3 mt-md-0">
                 <div class="row row-cols-1">
                     <div class="col mb-3">
@@ -193,31 +216,26 @@
                         </div>
                     </div>
                     
-                    
-                            <?php if($no_order){ ?>
-                            <button type="submit" class="w-100 btn btn-danger disabled" name="place_order" id="place_order"
-                                disabled>
-                                <?php
-                                    if(!$min_cost){
-                                        echo "Your order is less than minimum amount.";
-                                    }else{
-                                        echo "Cannot proceed with payment";
-                                    }
-                                ?>
-                            </button>
-                            <?php }else{ ?>
-                                
-                                <a href="payment.php" class="  mt-2 ms-2 p-2 bg-primary text-white text-center rounded  border-0 text-decoration-none link-light">
-                                <i class="bi bi-qr-code-scan"></i><span class="ms-2 mt-2 me-5"> Proceed with Payment</span>
-                            </a>
-                                
-                            <?php } ?>
-                        
+                    <?php if($no_order){ ?>
+                    <button type="submit" class="w-100 btn btn-danger disabled" name="place_order" id="place_order" disabled>
+                        <?php
+                            if(!$min_cost){
+                                echo "Your order is less than minimum amount (20 INR).";
+                            } else {
+                                echo "Cannot proceed with payment";
+                            }
+                        ?>
+                    </button>
+                    <?php } else { ?>
+                    <a href="payment.php" class="mt-2 ms-2 p-2 bg-primary text-white text-center rounded border-0 text-decoration-none link-light">
+                        <i class="bi bi-qr-code-scan"></i><span class="ms-2 mt-2 me-5"> Proceed with Payment</span>
+                    </a>
+                    <?php } ?>
                 </div>
             </div>
         </div>
         <!-- END CASE: HAVE ITEM(S) IN THE CART -->
-        <?php }else{ ?>
+        <?php } else { ?>
         <!-- CASE: NO ITEM IN THE CART -->
         <div class="row row-cols-1 notibar">
             <div class="col mt-2 ms-2 p-2 bg-danger text-white rounded text-start">

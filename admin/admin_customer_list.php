@@ -1,3 +1,7 @@
+
+
+
+
 <!DOCTYPE html>
 <html lang="en" class="h-100">
 
@@ -6,7 +10,7 @@
         session_start(); 
         include("../conn_db.php"); 
         include('../head.php');
-        if($_SESSION["utype"]!="ADMIN"){
+        if($_SESSION["utype"]!="ADMIN" && $_SESSION["utype"]!="SUPERADMIN"){
             header("location: ../restricted.php");
             exit(1);
         }
@@ -16,7 +20,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="../img/Color Icon with background.png" rel="icon">
     <link href="../css/main.css" rel="stylesheet">
-    <title>Customer List | FOODCAVE</title>
+    <title>Customer List | NNRG-CÁFE</title>
 </head>
 
 <body class="d-flex flex-column h-100">
@@ -188,7 +192,7 @@
                     <th scope="col">Last name</th>
                     <th scope="col">Type</th>
                     <th scope="col">Phone</th>
-                    <th scope="col">Department</th>
+                    <th scope="col">Department/Stream</th>
                     <th scope="col">E-mail</th>
                     <th scope="col">Action</th>
                 </tr>

@@ -1,30 +1,43 @@
 <?php
-    include('conn_db.php');
+include('conn_db.php');
 
-    $username = $_POST["username"];
-    $pwd = $_POST["pwd"];
+$username = $_POST["username"];
+$pwd = $_POST["pwd"];
 
-    $query = "SELECT c_id,c_username,c_firstname,c_lastname FROM customer WHERE
+$query = "SELECT c_id,c_username,c_firstname,c_lastname,c_type FROM customer WHERE
     c_username = '$username' AND c_pwd = '$pwd' LIMIT 0,1";
 
-    $result = $mysqli -> query($query);
-    if($result -> num_rows == 1){
-        //customer login
-        $row = $result -> fetch_array();
-        session_start();
-        $_SESSION["cid"] = $row["c_id"];
-        $_SESSION["firstname"] = $row["c_firstname"];
-        $_SESSION["lastname"] = $row["c_lastname"];
-        $_SESSION["utype"] = "customer";
+$result = $mysqli->query($query);
+if ($result->num_rows == 1) {
+    $row = $result->fetch_array();
 
-        header("location: index.php");
+    // Prevent admins from logging in through the customer portal
+    if ($row["c_type"] == "ADM" || $row["c_type"] == "SUP") {
+?>
+<script>
+    alert("You are an Administrator. Please log in through the Admin Shop Portal.");
+    window.location.href = "admin/admin_login.php";
+</script>
+<?php
         exit(1);
-    }else{
-        ?>
-        <script>
-            alert("You entered wrong username and/or password!");
-            history.back();
-        </script>
-        <?php
     }
+
+    //customer login
+    session_start();
+    $_SESSION["cid"] = $row["c_id"];
+    $_SESSION["firstname"] = $row["c_firstname"];
+    $_SESSION["lastname"] = $row["c_lastname"];
+    $_SESSION["utype"] = "customer";
+
+    header("location: index.php");
+    exit(1);
+}
+else {
+?>
+<script>
+    alert("You entered wrong username and/or password!");
+    history.back();
+</script>
+<?php
+}
 ?>

@@ -5,7 +5,7 @@
     <?php 
         session_start(); 
         include("../conn_db.php"); 
-        if($_SESSION["utype"]!="ADMIN"){
+        if($_SESSION["utype"]!="ADMIN" && $_SESSION["utype"]!="SUPERADMIN"){
             header("location: ../restricted.php");
             exit(1);
         }
@@ -40,7 +40,7 @@
     <link href="../css/main.css" rel="stylesheet">
     <link href="../css/login.css" rel="stylesheet">
     <link href="../img/Color Icon with background.png" rel="icon">
-    <title>Update shop password | FOODCAVE</title>
+    <title>Update shop password | NNRG-CÁFE</title>
 </head>
 
 <body class="d-flex flex-column h-100">

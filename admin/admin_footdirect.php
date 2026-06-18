@@ -9,7 +9,7 @@
     <link href="css/login.css" rel="stylesheet">
     <link href="../img/Color Icon with background.png" rel="icon">
 
-    <title>About Us | FOODCAVE</title>
+    <title>About Us | NNRG-CÁFE</title>
     <style>
        html,body {
   height:100%;

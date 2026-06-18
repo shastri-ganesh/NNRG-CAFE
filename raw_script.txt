@@ -1,0 +1,547 @@
+    <script>
+        // Global variables
+        let minPickupTime;
+        let minTimeString;
+        let isFormSubmitting = false;
+        const baseCost = <?php echo isset($base_cost) ? $base_cost : 0; ?>;
+        const takeawayCharge = 5.00;
+        const maxPoints = <?php echo isset($points_balance) ? $points_balance : 0; ?>;
+
+        // Function to convert 24-hour time to 12-hour format
+        function convertTo12HourFormat(time24) {
+            if (!time24) return '';
+
+            const [hours, minutes] = time24.split(':');
+            let hour = parseInt(hours);
+            const ampm = hour >= 12 ? 'PM' : 'AM';
+
+            hour = hour % 12;
+            hour = hour ? hour : 12; // Convert 0 to 12
+
+            return `${hour}:${minutes} ${ampm}`;
+        }
+
+        // Points management functions
+        function useMaxPoints() {
+            const pointsInput = document.getElementById('points-to-use');
+            if(pointsInput) {
+                const maxUsable = Math.min(maxPoints, getCurrentSubtotal());
+                pointsInput.value = maxUsable;
+            }
+            updateCostDisplay();
+        }
+
+        function clearPoints() {
+            const pointsInput = document.getElementById('points-to-use');
+            if(pointsInput) {
+                pointsInput.value = 0;
+            }
+            updateCostDisplay();
+        }
+
+        function getCurrentSubtotal() {
+            const orderType = document.querySelector('input[name="order_type"]:checked');
+            let subtotal = baseCost;
+            if (orderType && orderType.value === 'takeaway') {
+                subtotal += takeawayCharge;
+            }
+            return subtotal;
+        }
+
+        function updateCostDisplay(orderType = null) {
+            const takeawayChargeItem = document.getElementById('takeaway-charge-item');
+            const subtotalItem = document.getElementById('subtotal-item');
+            const subtotalAmount = document.getElementById('subtotal-amount');
+            const pointsDiscountItem = document.getElementById('points-discount-item');
+            const pointsDiscountAmount = document.getElementById('points-discount-amount');
+            const grandTotalSpan = document.getElementById('grand-total');
+            const finalAmountInput = document.getElementById('final-amount');
+            const pointsDiscountInput = document.getElementById('points-discount');
+
+            // Get points to use
+            const pointsInput = document.getElementById('points-to-use');
+            let pointsToUse = 0;
+            if (pointsInput) {
+                pointsToUse = parseInt(pointsInput.value) || 0;
+                const maxUsable = Math.min(maxPoints, getCurrentSubtotal());
+                if (pointsToUse > maxUsable) {
+                    pointsToUse = maxUsable;
+                    pointsInput.value = pointsToUse;
+                }
+            }
+
+            let subtotal = baseCost;
+
+            // Handle takeaway charges
+            if (!orderType) {
+                const selectedType = document.querySelector('input[name="order_type"]:checked');
+                orderType = selectedType ? selectedType.value : 'dine-in';
+            }
+
+            if (orderType === 'takeaway') {
+                if(takeawayChargeItem) takeawayChargeItem.style.display = 'flex';
+                subtotal += takeawayCharge;
+            } else {
+                if(takeawayChargeItem) takeawayChargeItem.style.display = 'none';
+            }
+
+            // Update subtotal
+            if(subtotalAmount) subtotalAmount.textContent = subtotal.toFixed(2) + ' INR';
+
+            // Handle points discount
+            if (pointsToUse > 0) {
+                if(pointsDiscountItem) pointsDiscountItem.style.display = 'flex';
+                if(pointsDiscountAmount) pointsDiscountAmount.textContent = '-' + pointsToUse.toFixed(2) + ' INR';
+                if(pointsDiscountInput) pointsDiscountInput.value = pointsToUse;
+            } else {
+                if(pointsDiscountItem) pointsDiscountItem.style.display = 'none';
+                if(pointsDiscountInput) pointsDiscountInput.value = 0;
+            }
+
+            // Calculate final amount after points and coupon
+            let finalAmount = Math.max(0, subtotal - pointsToUse);
+            if (window.activeCouponDiscount && window.activeCouponDiscount > 0) {
+                finalAmount = Math.max(0, finalAmount - window.activeCouponDiscount);
+            }
+
+            if(grandTotalSpan) grandTotalSpan.textContent = finalAmount.toFixed(2) + ' INR';
+            if(finalAmountInput) finalAmountInput.value = finalAmount.toFixed(2);
+
+            // Update QR code if needed
+            updateQRCode(orderType, finalAmount);
+        }
+
+        // Update QR code
+        function updateQRCode(orderType, finalAmount = null) {
+            const qrImg = document.getElementById('payment-qr-code');
+            if(!qrImg) return;
+            
+            const merchantVpa = qrImg.getAttribute('data-merchant-vpa');
+            const merchantName = qrImg.getAttribute('data-merchant-name');
+            const transactionNote = qrImg.getAttribute('data-transaction-note');
+
+            let paymentAmount = finalAmount !== null ? finalAmount : getCurrentSubtotal();
+
+            const pointsInput = document.getElementById('points-to-use');
+            if (pointsInput) {
+                const pointsToUse = parseInt(pointsInput.value) || 0;
+                if (finalAmount === null) {
+                    paymentAmount = Math.max(0, paymentAmount - pointsToUse);
+                }
+            }
+            
+            if (window.activeCouponDiscount && window.activeCouponDiscount > 0 && finalAmount === null) {
+                paymentAmount = Math.max(0, paymentAmount - window.activeCouponDiscount);
+            }
+
+            const upiString = `upi://pay?pa=${merchantVpa}&pn=${merchantName}&am=${paymentAmount}&cu=INR&tn=${transactionNote}`;
+            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(upiString)}`;
+
+            qrImg.src = qrUrl;
+        }
+
+        // Transaction ID validation
+        function validateTransactionId() {
+            const tidInput = document.getElementById('tid');
+            const cftidInput = document.getElementById('cftid');
+            const counter = document.getElementById('tid-counter');
+            const confirmCounter = document.getElementById('cftid-counter');
+            const submitBtn = document.getElementById('submit-btn');
+            const tandc = document.getElementById('tandc');
+
+            let tidValue = '';
+            let cftidValue = '';
+
+            if (tidInput && counter) {
+                tidValue = tidInput.value.replace(/\D/g, '');
+                tidInput.value = tidValue;
+                counter.textContent = `${tidValue.length}/12 digits`;
+
+                if (tidValue.length === 12) {
+                    counter.style.color = '#28a745';
+                    counter.classList.add('text-success');
+                    counter.classList.remove('text-muted');
+                } else {
+                    counter.style.color = '#6c757d';
+                    counter.classList.remove('text-success');
+                    counter.classList.add('text-muted');
+                }
+            }
+
+            if (cftidInput && confirmCounter) {
+                cftidValue = cftidInput.value.replace(/\D/g, '');
+                cftidInput.value = cftidValue;
+                confirmCounter.textContent = `${cftidValue.length}/12 digits`;
+
+                if (cftidValue.length === 12) {
+                    confirmCounter.style.color = '#28a745';
+                    confirmCounter.classList.add('text-success');
+                    confirmCounter.classList.remove('text-muted');
+                } else {
+                    confirmCounter.style.color = '#6c757d';
+                    confirmCounter.classList.remove('text-success');
+                    confirmCounter.classList.add('text-muted');
+                }
+            }
+
+            // Enable submit button
+            if (submitBtn) {
+                const tidValid = tidValue.length === 12;
+                const cftidValid = cftidValue.length === 12;
+                const idsMatch = tidValue === cftidValue && tidValue !== '';
+                const termsAccepted = tandc ? tandc.checked : false;
+
+                if (tidValid && cftidValid && idsMatch && termsAccepted) {
+                    submitBtn.disabled = false;
+                    submitBtn.classList.remove('btn-secondary');
+                    submitBtn.classList.add('btn-success');
+                    submitBtn.textContent = 'Complete Payment';
+                } else {
+                    submitBtn.disabled = true;
+                    submitBtn.classList.remove('btn-success');
+                    submitBtn.classList.add('btn-secondary');
+                    submitBtn.textContent = 'Complete Payment (Disabled)';
+                }
+
+                const mismatchWarning = document.getElementById('mismatch-warning');
+                if (mismatchWarning) {
+                    if (tidValue && cftidValue && tidValue !== cftidValue) {
+                        mismatchWarning.style.display = 'block';
+                    } else {
+                        mismatchWarning.style.display = 'none';
+                    }
+                }
+            }
+        }
+
+        // Order type selection
+        function selectOrderType(type) {
+            document.querySelectorAll('.order-type-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+
+            event.currentTarget.classList.add('selected');
+            document.getElementById(type).checked = true;
+
+            updateLabelsBasedOnOrderType(type);
+            updateCostDisplay(type);
+        }
+
+        // Update labels based on order type
+        function updateLabelsBasedOnOrderType(orderType) {
+            const pickupIcon = document.getElementById('pickup-icon');
+            const pickupTitle = document.getElementById('pickup-title');
+            const timeLabel = document.getElementById('time-label');
+
+            if (orderType === 'takeaway') {
+                pickupIcon.className = 'bi bi-bag-fill';
+                pickupTitle.textContent = 'Pickup Information';
+                timeLabel.textContent = 'Preferred Pickup Time';
+            } else {
+                pickupIcon.className = 'bi bi-geo-alt-fill';
+                pickupTitle.textContent = 'Dining Information';
+                timeLabel.textContent = 'Preferred Dining Time';
+            }
+        }
+
+        // Calculate minimum pickup time
+        function updateMinimumPickupTime() {
+            const now = new Date();
+            const minTime = new Date(now.getTime() + 30 * 60000);
+
+            const hours = String(minTime.getHours()).padStart(2, '0');
+            const minutes = String(minTime.getMinutes()).padStart(2, '0');
+            minTimeString = `${hours}:${minutes}`;
+
+            const timeDisplay = document.getElementById('min-time-display');
+            if (timeDisplay) {
+                // Convert to 12-hour format for display
+                timeDisplay.textContent = convertTo12HourFormat(minTimeString);
+            }
+
+            const timeInput = document.getElementById('delivery_time');
+            if (timeInput) {
+                timeInput.min = minTimeString;
+            }
+        }
+
+        // Validate pickup time
+        function validatePickupTime(selectedTime) {
+            if (!selectedTime) return false;
+
+            const now = new Date();
+            const minTime = new Date(now.getTime() + 30 * 60000);
+
+            const [hours, minutes] = selectedTime.split(':');
+            const selectedDateTime = new Date();
+            selectedDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+
+            return selectedDateTime >= minTime;
+        }
+
+        // Show error message
+        function showError(message) {
+            const errorDiv = document.getElementById('payment-error');
+            const errorMessage = document.getElementById('error-message');
+
+            if (errorDiv && errorMessage) {
+                errorMessage.textContent = message;
+                errorDiv.style.display = 'block';
+
+                setTimeout(() => {
+                    errorDiv.style.display = 'none';
+                }, 5000);
+            }
+        }
+
+        // Hide all messages
+        function hideAllMessages() {
+            document.getElementById('payment-success').style.display = 'none';
+            document.getElementById('payment-processing').style.display = 'none';
+            document.getElementById('payment-error').style.display = 'none';
+        }
+
+        // DOM Content Loaded
+        document.addEventListener('DOMContentLoaded', function () {
+            updateMinimumPickupTime();
+            updateCostDisplay('dine-in');
+            setInterval(updateMinimumPickupTime, 60000);
+
+            const tidInput = document.getElementById('tid');
+            const cftidInput = document.getElementById('cftid');
+            const tandc = document.getElementById('tandc');
+            const deliveryTimeInput = document.getElementById('delivery_time');
+            const pointsInput = document.getElementById('points-to-use');
+
+            if (tidInput) {
+                tidInput.addEventListener('input', validateTransactionId);
+                tidInput.addEventListener('paste', function () {
+                    setTimeout(validateTransactionId, 50);
+                });
+            }
+
+            if (cftidInput) {
+                cftidInput.addEventListener('input', validateTransactionId);
+                cftidInput.addEventListener('paste', function () {
+                    setTimeout(validateTransactionId, 50);
+                });
+            }
+
+            if (tandc) {
+                tandc.addEventListener('change', validateTransactionId);
+            }
+
+            if (pointsInput) {
+                pointsInput.addEventListener('input', function () {
+                    const value = parseInt(this.value) || 0;
+                    const maxUsable = Math.min(maxPoints, getCurrentSubtotal());
+                    if (value > maxUsable) {
+                        this.value = maxUsable;
+                    }
+                    if (value < 0) {
+                        this.value = 0;
+                    }
+                    updateCostDisplay();
+                });
+            }
+
+            if (deliveryTimeInput) {
+                deliveryTimeInput.addEventListener('change', function () {
+                    validatePickupTime(this.value);
+                });
+                deliveryTimeInput.addEventListener('input', function () {
+                    validatePickupTime(this.value);
+                });
+            }
+
+            document.querySelectorAll('input[name="order_type"]').forEach(radio => {
+                radio.addEventListener('change', function () {
+                    updateLabelsBasedOnOrderType(this.value);
+                    updateCostDisplay(this.value);
+                });
+            });
+
+            // Form submission handling
+            document.getElementById('payment-form').addEventListener('submit', function (e) {
+                e.preventDefault();
+
+                if (isFormSubmitting) {
+                    return false;
+                }
+
+                // Validate required fields
+                const requiredFields = [
+                    { id: 'delivery_time', name: 'Pickup Time' }
+                ];
+
+                let missingFields = [];
+                for (let field of requiredFields) {
+                    const fieldValue = document.getElementById(field.id).value.trim();
+                    if (!fieldValue) {
+                        missingFields.push(field.name);
+                    }
+                }
+
+                const orderType = document.querySelector('input[name="order_type"]:checked');
+                if (!orderType) {
+                    missingFields.push('Order Type');
+                }
+
+                if (missingFields.length > 0) {
+                    showError('Please fill in the following required fields: ' + missingFields.join(', '));
+                    return false;
+                }
+
+                if (!document.getElementById('tandc').checked) {
+                    showError('Please accept the terms and conditions.');
+                    return false;
+                }
+
+                const pickupTime = document.getElementById('delivery_time').value;
+                if (!validatePickupTime(pickupTime)) {
+                    showError('Please select a pickup time at least 30 minutes from now.');
+                    return false;
+                }
+
+                const tidValue = document.getElementById('tid').value.replace(/\D/g, '');
+                const cftidValue = document.getElementById('cftid').value.replace(/\D/g, '');
+
+                if (tidValue.length !== 12) {
+                    showError('Please enter a valid 12-digit transaction ID.');
+                    return false;
+                }
+
+                if (cftidValue.length !== 12) {
+                    showError('Please confirm your 12-digit transaction ID.');
+                    return false;
+                }
+
+                if (tidValue !== cftidValue) {
+                    showError('Transaction IDs do not match. Please confirm your transaction ID.');
+                    return false;
+                }
+
+                updateCostDisplay(orderType.value);
+
+                isFormSubmitting = true;
+                hideAllMessages();
+                document.getElementById('payment-processing').style.display = 'block';
+
+                const submitBtn = document.getElementById('submit-btn');
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Processing...';
+
+                setTimeout(() => {
+                    this.submit();
+                }, 500);
+            });
+
+            setTimeout(validateTransactionId, 100);
+        });
+
+        // ===== COUPON LOGIC =====
+        window.activeCouponDiscount = 0;
+
+        function applyCoupon() {
+            const codeInput = document.getElementById('coupon-code-input');
+            const btn = document.getElementById('apply-coupon-btn');
+            const msgBox = document.getElementById('coupon-message');
+            const discountRow = document.getElementById('coupon-discount-item');
+            const discountAmtSpan = document.getElementById('coupon-discount-amount');
+            const hiddenCouponVal = document.getElementById('coupon-discount-val');
+
+            const code = codeInput.value.trim().toUpperCase();
+
+            if (!code) {
+                msgBox.style.display = 'block';
+                msgBox.style.color = '#dc3545';
+                msgBox.textContent = 'Please enter a coupon code.';
+                // Reset if they cleared it
+                window.activeCouponDiscount = 0;
+                discountRow.style.display = 'none';
+                hiddenCouponVal.value = 0;
+                updateCostDisplay();
+                return;
+            }
+
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+            btn.disabled = true;
+
+            const requestData = {
+                code: code,
+                base_cost: getCurrentSubtotal() // Check against current cart cost including takeaway
+            };
+
+            fetch('validate_coupon.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestData)
+            })
+                .then(response => response.json())
+                .then(data => {
+                    btn.innerHTML = 'Apply';
+                    btn.disabled = false;
+
+                    msgBox.style.display = 'block';
+                    if (data.success) {
+                        msgBox.style.color = '#28a745';
+                        msgBox.innerHTML = '<i class="bi bi-check-circle-fill"></i> ' + data.message;
+
+                        window.activeCouponDiscount = data.discount;
+                        discountRow.style.display = 'flex';
+                        discountAmtSpan.textContent = '-' + data.discount.toFixed(2) + ' INR';
+                        hiddenCouponVal.value = data.discount;
+
+                        // Disable input so they don't change it without clearing
+                        codeInput.disabled = true;
+                        btn.textContent = 'Remove';
+                        btn.classList.remove('btn-outline-primary');
+                        btn.classList.add('btn-outline-danger');
+                        btn.onclick = removeCoupon;
+
+                        updateCostDisplay();
+                    } else {
+                        msgBox.style.color = '#dc3545';
+                        msgBox.innerHTML = '<i class="bi bi-x-circle-fill"></i> ' + data.message;
+
+                        window.activeCouponDiscount = 0;
+                        discountRow.style.display = 'none';
+                        hiddenCouponVal.value = 0;
+                        updateCostDisplay();
+                    }
+                })
+                .catch(error => {
+                    btn.innerHTML = 'Apply';
+                    btn.disabled = false;
+                    console.error('Error applying coupon:', error);
+                    msgBox.style.display = 'block';
+                    msgBox.style.color = '#dc3545';
+                    msgBox.textContent = 'Server error checking coupon. Please try again.';
+                });
+        }
+
+        function removeCoupon() {
+            const codeInput = document.getElementById('coupon-code-input');
+            const btn = document.getElementById('apply-coupon-btn');
+            const msgBox = document.getElementById('coupon-message');
+            const discountRow = document.getElementById('coupon-discount-item');
+            const hiddenCouponVal = document.getElementById('coupon-discount-val');
+
+            // Revert UI to empty state
+            codeInput.disabled = false;
+            codeInput.value = '';
+
+    .textContent = 'Apply';
+            btn.classList.remove('btn-outline-danger');
+            btn.classList.add('btn-outline-primary');
+            btn.onclick = applyCoupon;
+
+            msgBox.style.display = 'none';
+            discountRow.style.display = 'none';
+
+            window.activeCouponDiscount = 0;
+            hiddenCouponVal.value = 0;
+
+            updateCostDisplay();
+        }
+    </script>

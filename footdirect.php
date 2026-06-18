@@ -394,15 +394,16 @@
         <div class="team-section" id="team">
             <h2 style="text-align: center; color: #2c3e50; margin-bottom: 1rem;">Meet The Alpha Achievers</h2>
             <p style="text-align: center; color: #7f8c8d; margin-bottom: 2rem;">
-                The talented individuals behind FOODCAVE
+                The talented individuals behind NNRG-CÁFE
             </p>
             
             <div class="team-grid">
                 <div class="team-member">
                     <div class="member-photo">
-                        <img src="img/gan.jpg" alt="Ganesh Bijapurkar" 
-                             onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                    
+                        <img src="img/gane.jpeg" alt="Ganesh Bijapurkar" 
+                             onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+                             onload="this.nextElementSibling.style.display='none';">
+                        <i class="bi bi-person-fill placeholder-icon"></i>
                     </div>
                     <h3 class="member-name">Ganesh Bijapurkar</h3>
                     <p class="member-role">Full Stack Developer & UI Designer</p>
@@ -418,8 +419,10 @@
                 
                 <div class="team-member">
                     <div class="member-photo">
-                        <img src="img/vams.jpg" alt="Vamshi Yamajala" 
-                             onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                        <img src="img/vam.jpg" alt="Vamshi Yamajala" 
+                             onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+                             onload="this.nextElementSibling.style.display='none';">
+                        <i class="bi bi-person-fill placeholder-icon"></i>
                     </div>
                     <h3 class="member-name">Vamshi Yamajala</h3>
                     <p class="member-role">Full Stack Developer & UI Designer</p>
@@ -439,18 +442,18 @@
         <div class="college-info">
             <h3>NNRG College of Engineering</h3>
             <p>Department of Computer Science and Engineering</p>
+            <p><strong> </strong> Information Technology</p>
         </div>
 
-        <!-- Updated: Return to Home Button with space before footer -->
-<div class="text-center" style="margin-bottom: 3rem;">
-    <a href="index.php" class="return-btn">
-        <i class="bi bi-arrow-left me-2"></i>Return to Home
-    </a>
-</div>
-
+        <!-- Return to Home Button -->
+        <div class="text-center" style="margin-bottom: 3rem;">
+            <a href="index.php" class="return-btn">
+                <i class="bi bi-arrow-left me-2"></i>Return to Home
+            </a>
+        </div>
     </div>
 
-    <?php include('footer.php')?>
+    <?php include('footer.php'); ?>
 </body>
 
 </html>

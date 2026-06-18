@@ -4,7 +4,7 @@
 <head>
     <?php 
         session_start(); 
-        if($_SESSION["utype"]!="ADMIN"){
+        if($_SESSION["utype"]!="ADMIN" && $_SESSION["utype"]!="SUPERADMIN"){
             header("location: ../restricted.php");
             exit(1);
         }
@@ -18,7 +18,7 @@
     <link href="../css/main.css" rel="stylesheet">
     <link href="../css/login.css" rel="stylesheet">
     <script type="text/javascript" src="../js/revenue_date_selection.js"></script>
-    <title>Revenue Report | FOODCAVE</title>
+    <title>Revenue Report | NNRG-CÁFE</title>
 </head>
 
 <body class="d-flex flex-column h-100">
