@@ -209,6 +209,40 @@ function getItemWiseSalesBreakdown($mysqli, $start_date, $end_date, $shop_id = n
     return $sales_data;
 }
 
+// Export Data to Excel (CSV Format)
+if (isset($_GET['export']) && $_GET['export'] == 'excel') {
+    $itemwise_sales = getItemWiseSalesBreakdown($mysqli, $start_date, $end_date, $shop_id);
+    $filename = "Analytics_Report_" . $start_date . "_to_" . $end_date . ".csv";
+
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename="' . $filename . '"');
+    
+    $output = fopen('php://output', 'w');
+    // Output BOM to ensure Excel reads UTF-8 correctly
+    fputs($output, $bom = (chr(0xEF) . chr(0xBB) . chr(0xBF)));
+
+    // Header row
+    fputcsv($output, array('Item Name', 'Walk-In Qty', 'Online Qty', 'Total Sold Qty', 'Total Revenue'));
+
+    // Data rows
+    if (!empty($itemwise_sales)) {
+        foreach ($itemwise_sales as $item) {
+            fputcsv($output, array(
+                $item['name'],
+                $item['walkin_qty'],
+                $item['online_qty'],
+                $item['total_qty'],
+                $item['revenue']
+            ));
+        }
+    } else {
+        fputcsv($output, array('No item sales records found for this period.'));
+    }
+    
+    fclose($output);
+    exit;
+}
+
 // Check if it's an AJAX request for data
 if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
     header('Content-Type: application/json');
@@ -373,7 +407,7 @@ if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
     <div class="container-fluid dashboard-container">
         <!-- Header -->
         <div class="row mb-4">
-            <div class="col-md-8">
+            <div class="col-md-7">
                 <h1 class="display-5 fw-bold text-dark">
                     <i class="fas fa-chart-line me-3"></i>
                     <?php echo $shop_id ? htmlspecialchars($_SESSION['shop_name']) . ' Analytics' : 'Analytics Dashboard'; ?>
@@ -382,12 +416,15 @@ if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
                     <?php echo $shop_id ? 'Real-time insights into your shop performance' : 'Real-time insights into your cafeteria performance'; ?>
                 </p>
             </div>
-            <div class="col-md-4 text-end">
-                <div class="btn-group">
+            <div class="col-md-5 text-end">
+                <div class="btn-group me-2">
                     <button class="btn btn-outline-primary active" onclick="setDateRange('today')">Today</button>
                     <button class="btn btn-outline-primary" onclick="setDateRange('week')">This Week</button>
                     <button class="btn btn-outline-primary" onclick="setDateRange('month')">This Month</button>
                 </div>
+                <button class="btn btn-success" onclick="exportToExcel()">
+                    <i class="fas fa-file-excel me-2"></i>Export
+                </button>
             </div>
         </div>
 
@@ -649,7 +686,6 @@ if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
             document.getElementById('onlinePopularItems').innerHTML = onlineHtml;
         }
 
-        // NEW JAVASCRIPT INJECTION LOGIC: Builds out the real-time items loop table rows dynamically
         function updateItemWiseSalesTable(itemwise_sales) {
             const tbody = document.getElementById('itemWiseSalesTableBody');
             
@@ -789,6 +825,14 @@ if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
             document.querySelector('input[name="end_date"]').value = today;
 
             loadAnalyticsData();
+        }
+        
+        // Export to Excel function
+        function exportToExcel() {
+            const startDate = document.querySelector('input[name="start_date"]').value;
+            const endDate = document.querySelector('input[name="end_date"]').value;
+            // Redirect to trigger the download
+            window.location.href = `?export=excel&start_date=${startDate}&end_date=${endDate}`;
         }
 
         document.addEventListener('DOMContentLoaded', function () {
